@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Container,
   Button,
@@ -23,14 +23,14 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  CircularProgress,
-  Divider
+  CircularProgress
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import { AuctionItem, PayoutCategory } from '../../types';
 import { formatPercentage } from '../../utils/helpers';
+import { testAuctionData } from '../../utils/testData';
 
 interface SetupProps {
   sessionCode: string;
@@ -217,7 +217,17 @@ export const Setup: React.FC<SetupProps> = ({ sessionCode, onLaunchAuction }) =>
     }
   };
 
-  const totalPayoutPercentage = payouts.reduce((sum, p) => sum + p.percentageOfPot, 0);
+  const handleLoadTestData = () => {
+    setTitle(testAuctionData.title);
+    setItems(testAuctionData.items);
+    setPayouts(testAuctionData.payouts);
+    setNotes(testAuctionData.notes);
+    setError('');
+  };
+
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
+
   const payoutsByType = {
     win: payouts.filter(p => p.type === 'win'),
     prop: payouts.filter(p => p.type === 'prop')
@@ -225,13 +235,25 @@ export const Setup: React.FC<SetupProps> = ({ sessionCode, onLaunchAuction }) =>
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Auction Setup
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Session Code: <strong>{sessionCode}</strong> - Share this with participants to join
-        </Typography>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box>
+          <Typography variant="h4" gutterBottom>
+            Auction Setup
+          </Typography>
+          <Typography variant="body2" color="textSecondary">
+            Session Code: <strong>{sessionCode}</strong> - Share this with participants to join
+          </Typography>
+        </Box>
+        {isDevelopment && (
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={handleLoadTestData}
+            size="small"
+          >
+            Load Test Data
+          </Button>
+        )}
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}

@@ -13,8 +13,6 @@ import {
   writeBatch,
   addDoc,
   serverTimestamp,
-  Firestore,
-  DocumentReference,
 } from 'firebase/firestore';
 import { 
   AuctionConfig, 
@@ -29,12 +27,13 @@ import {
 // Firebase configuration
 // NOTE: Replace with your own Firebase config from Firebase Console
 const firebaseConfig = {
-  apiKey: "AIzaSyDemoKeyReplaceMeWithActualConfig",
-  authDomain: "calcutta-auction.firebaseapp.com",
-  projectId: "calcutta-auction",
-  storageBucket: "calcutta-auction.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef123456"
+  apiKey: "AIzaSyCAAkWT9GZt3S9TiRF73bbsrLGvoms1tBk",
+  authDomain: "doormans-calcutta.firebaseapp.com",
+  projectId: "doormans-calcutta",
+  storageBucket: "doormans-calcutta.firebasestorage.app",
+  messagingSenderId: "757150139533",
+  appId: "1:757150139533:web:9a1cb7b040f7fbb37c8ec4",
+  measurementId: "G-FJ42TF1G8Y"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -44,7 +43,6 @@ const db = getFirestore(app);
 const AUCTIONS = 'auctions';
 const AUCTION_STATE = 'state';
 const PARTICIPANTS = 'participants';
-const CURRENT_BID = 'currentBid';
 const RESULTS = 'results';
 
 // Create a new auction
@@ -85,6 +83,13 @@ export async function createAuction(
   await setDoc(doc(db, AUCTIONS, docRef.id, AUCTION_STATE, 'current'), initialState);
 
   return docRef.id;
+}
+
+// Get auction by ID
+export async function getAuctionById(auctionId: string): Promise<AuctionConfig | null> {
+  const docSnapshot = await getDoc(doc(db, AUCTIONS, auctionId));
+  if (!docSnapshot.exists()) return null;
+  return { id: auctionId, ...docSnapshot.data() } as AuctionConfig;
 }
 
 // Get auction by session code

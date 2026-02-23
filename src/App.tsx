@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ThemeProvider, createTheme, Box, CircularProgress, Typography, Container } from '@mui/material';
 import { SignIn } from './components/SignIn';
 import { Setup } from './components/Setup';
@@ -7,6 +7,7 @@ import { Results } from './components/Results';
 import {
   createAuction,
   getAuctionBySessionCode,
+  getAuctionById,
   addParticipant,
   subscribeToAuctionState,
   subscribeToParticipants,
@@ -108,7 +109,7 @@ function App() {
         id: participantId,
         displayName,
         isHost: true,
-        avatarUrl: profilePicture ? await fileToDataUrl(profilePicture) : undefined
+        ...(profilePicture && { avatarUrl: await fileToDataUrl(profilePicture) })
       };
 
       setCurrentParticipant(newParticipant);
@@ -142,7 +143,7 @@ function App() {
         id: participantId,
         displayName,
         isHost: false,
-        avatarUrl: profilePicture ? await fileToDataUrl(profilePicture) : undefined
+        ...(profilePicture && { avatarUrl: await fileToDataUrl(profilePicture) })
       };
 
       // Add participant to auction
@@ -180,20 +181,11 @@ function App() {
       }
 
       setAuctionId(newAuctionId);
-      setAuctionConfig({
-        id: newAuctionId,
-        title,
-        sessionCode: '',
-        items,
-        payouts,
-        notes
-      });
 
-      // Load the config from Firebase to get session code
-      // For now we'll get it from the created auction
-      const auction = await getAuctionBySessionCode(''); // This won't work, need to fix
-      if (auction) {
-        setAuctionConfig(auction.config);
+      // Fetch the auction config from Firebase to get the session code
+      const auctionConfig = await getAuctionById(newAuctionId);
+      if (auctionConfig) {
+        setAuctionConfig(auctionConfig);
       }
 
       // Launch the auction
@@ -328,6 +320,7 @@ function App() {
                 state={auctionState}
                 onUpdateResult={handleUpdateResult}
                 onExport={handleExport}
+                onBack={() => setShowPayouts(false)}
               />
             ) : showResults || auctionState.phase === 'complete' ? (
               <Results

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Box,
@@ -14,14 +14,14 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
-  Chip
+  DialogActions
 } from '@mui/material';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { AuctionState, AuctionItem, Participant, ItemRoundResult } from '../../types';
+import { AuctionState, Participant, ItemRoundResult } from '../../types';
 import { formatCurrency, getInitials, getAvatarColor } from '../../utils/helpers';
+import { Room } from '../Room';
 
 interface AuctionProps {
   state: AuctionState;
@@ -55,31 +55,51 @@ export const Auction: React.FC<AuctionProps> = ({
   const [voidConfirm, setVoidConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [timerDisplay, setTimerDisplay] = useState(state.timerSeconds);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const completionTriggeredRef = useRef(false);
 
-  // Simulate client-side timer for UI
+  // Countdown timer - just count down
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (state.timerRunning && state.timerSeconds > 0) {
-      interval = setInterval(() => {
-        setTimerDisplay(prev => {
-          if (prev <= 1 && state.timerRunning) {
-            // Timer expired - complete the item
-            completeCurrentItem();
-            return 30;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      setTimerDisplay(state.timerSeconds);
+    // Clear existing interval
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
     }
-    return () => clearInterval(interval);
+
+    // Reset completion flag when timer resets
+    completionTriggeredRef.current = false;
+    setTimerDisplay(state.timerSeconds);
+
+    // Start countdown if timer is running
+    if (state.timerRunning) {
+      console.log('Starting timer countdown from', state.timerSeconds);
+      timerIntervalRef.current = setInterval(() => {
+        setTimerDisplay(prev => Math.max(0, prev - 1));
+      }, 1000);
+    }
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
   }, [state.timerRunning, state.timerSeconds]);
 
-  const completeCurrentItem = useCallback(async () => {
-    if (state.currentBidderId && state.currentItem) {
-      const bidderName = allParticipants.find(p => p.id === state.currentBidderId)?.displayName || '';
+  // Handle completion when timer reaches 0
+  useEffect(() => {
+    console.log('Timer effect check:', {
+      timerDisplay,
+      timerRunning: state.timerRunning,
+      hasBidderId: !!state.currentBidderId,
+      hasItem: !!state.currentItem,
+      notTriggered: !completionTriggeredRef.current
+    });
 
+    if (timerDisplay === 0 && state.timerRunning && !completionTriggeredRef.current && state.currentBidderId && state.currentItem) {
+      console.log('TRIGGERING COMPLETION');
+      completionTriggeredRef.current = true;
+      
+      // Timer expired - complete the item
+      const bidderName = allParticipants.find(p => p.id === state.currentBidderId)?.displayName || '';
       const result: ItemRoundResult = {
         itemId: state.currentItem.id,
         itemName: state.currentItem.name,
@@ -89,10 +109,11 @@ export const Auction: React.FC<AuctionProps> = ({
         timestamp: Date.now(),
         bidHistory: state.bidHistory
       };
-
-      await onCompleteItem(result);
+      
+      console.log('Calling onCompleteItem with result:', result);
+      onCompleteItem(result);
     }
-  }, [state, allParticipants, onCompleteItem]);
+  }, [timerDisplay, state.timerRunning, state.currentBidderId, state.currentItem, state.currentBid, state.bidHistory, allParticipants, onCompleteItem]);
 
   const handlePlaceBid = async (amount: number) => {
     setBidError('');
@@ -169,6 +190,13 @@ export const Auction: React.FC<AuctionProps> = ({
           </Button>
         </Box>
       </Box>
+
+      {/* Room/Participants */}
+      <Room
+        participants={allParticipants}
+        currentParticipantId={currentParticipant.id}
+        sessionCode={sessionCode}
+      />
 
       {/* Main Auction Area */}
       {state.phase === 'complete' ? (
@@ -316,7 +344,7 @@ export const Auction: React.FC<AuctionProps> = ({
                         variant="contained"
                         size="large"
                         onClick={() => handlePlaceBid(state.currentBid + 1)}
-                        disabled={loading || state.phase !== 'active' || (!state.timerRunning && state.currentBid === 0)}
+                        disabled={loading || state.phase !== 'active'}
                       >
                         +$1
                       </Button>
@@ -327,7 +355,7 @@ export const Auction: React.FC<AuctionProps> = ({
                         variant="contained"
                         size="large"
                         onClick={() => handlePlaceBid(state.currentBid + 5)}
-                        disabled={loading || state.phase !== 'active' || (!state.timerRunning && state.currentBid === 0)}
+                        disabled={loading || state.phase !== 'active'}
                       >
                         +$5
                       </Button>
@@ -338,7 +366,7 @@ export const Auction: React.FC<AuctionProps> = ({
                         variant="contained"
                         size="large"
                         onClick={() => handlePlaceBid(state.currentBid + 10)}
-                        disabled={loading || state.phase !== 'active' || (!state.timerRunning && state.currentBid === 0)}
+                        disabled={loading || state.phase !== 'active'}
                       >
                         +$10
                       </Button>
@@ -355,7 +383,7 @@ export const Auction: React.FC<AuctionProps> = ({
                         value={customBid}
                         onChange={(e) => setCustomBid(e.target.value)}
                         placeholder={`Must exceed ${formatCurrency(state.currentBid)}`}
-                        disabled={loading || state.phase !== 'active' || (!state.timerRunning && state.currentBid === 0)}
+                        disabled={loading || state.phase !== 'active'}
                         helperText={state.currentBid > 0 ? `Minimum bid: ${formatCurrency(state.currentBid + 0.01)}` : 'Enter minimum starting bid'}
                       />
                     </Grid>
@@ -365,7 +393,7 @@ export const Auction: React.FC<AuctionProps> = ({
                         size="large"
                         variant="contained"
                         onClick={handleCustomBid}
-                        disabled={loading || !customBid || state.phase !== 'active' || (!state.timerRunning && state.currentBid === 0)}
+                        disabled={loading || !customBid || state.phase !== 'active'}
                         sx={{ height: '100%' }}
                       >
                         Bid
@@ -414,6 +442,44 @@ export const Auction: React.FC<AuctionProps> = ({
             </Card>
           )}
         </>
+      )}
+
+      {/* Auction Progress / Recently Sold Items */}
+      {state.results && state.results.length > 0 && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
+              Items Sold ({state.results.length})
+            </Typography>
+            <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+              {state.results.map((result, index) => (
+                <Box
+                  key={result.itemId}
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    p: 2,
+                    backgroundColor: index % 2 === 0 ? '#f9f9f9' : '#ffffff',
+                    borderBottom: '1px solid #e0e0e0'
+                  }}
+                >
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {result.itemName}
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      Won by: {result.winnerName}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#4caf50', minWidth: 80, textAlign: 'right' }}>
+                    {formatCurrency(result.salePrice)}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
       )}
 
       {/* Void Confirmation Dialog */}
