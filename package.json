@@ -1,0 +1,32 @@
+{
+  "name": "calcutta-auction",
+  "version": "1.0.0",
+  "description": "Real-time web application for conducting Calcutta-style auctions",
+  "main": "index.js",
+  "private": true,
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.3.3",
+    "firebase": "^10.6.0",
+    "@mui/material": "^5.14.13",
+    "@mui/icons-material": "^5.14.13",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "xlsx": "^0.18.5",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@types/node": "^20.10.6",
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.10"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "start": "vite"
+  }
+}
