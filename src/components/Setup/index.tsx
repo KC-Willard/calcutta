@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Container,
   Button,
@@ -64,6 +64,9 @@ export const Setup: React.FC<SetupProps> = ({ sessionCode, onLaunchAuction }) =>
   const [payoutType, setPayoutType] = useState<'win' | 'prop'>('win');
   const [payoutNumWinners, setPayoutNumWinners] = useState(1);
   const [payoutPercentage, setPayoutPercentage] = useState(0);
+
+  // CSV import
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddItem = () => {
     setEditingItemId(null);
@@ -225,6 +228,53 @@ export const Setup: React.FC<SetupProps> = ({ sessionCode, onLaunchAuction }) =>
     setError('');
   };
 
+  const handleCSVImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const csv = e.target?.result as string;
+        const lines = csv.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        
+        // Skip header row if it exists (check for common headers)
+        let startIdx = 0;
+        if (lines[0]?.toLowerCase().includes('name') || lines[0]?.toLowerCase().includes('item')) {
+          startIdx = 1;
+        }
+
+        const newItems: AuctionItem[] = [];
+        for (let i = startIdx; i < lines.length; i++) {
+          // Handle both quoted and unquoted CSV values
+          const itemName = lines[i].replace(/^["']|["']$/g, '').trim();
+          if (itemName) {
+            newItems.push({
+              id: Math.random().toString(36).substring(7),
+              name: itemName
+            });
+          }
+        }
+
+        if (newItems.length === 0) {
+          setError('No valid items found in CSV file');
+          return;
+        }
+
+        setItems([...items, ...newItems]);
+        setError('');
+      } catch (err) {
+        setError('Failed to parse CSV file: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset input so same file can be selected again
+    if (csvInputRef.current) {
+      csvInputRef.current.value = '';
+    }
+  };
+
   const isDevelopment = process.env.NODE_ENV === 'development';
 
 
@@ -278,14 +328,30 @@ export const Setup: React.FC<SetupProps> = ({ sessionCode, onLaunchAuction }) =>
             <Typography variant="h6">
               Items ({items.length})
             </Typography>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleAddItem}
-              size="small"
-            >
-              Add Item
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleAddItem}
+                size="small"
+              >
+                Add Item
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => csvInputRef.current?.click()}
+                size="small"
+              >
+                Import CSV
+              </Button>
+              <input
+                ref={csvInputRef}
+                type="file"
+                accept=".csv"
+                style={{ display: 'none' }}
+                onChange={handleCSVImport}
+              />
+            </Box>
           </Box>
 
           {items.length === 0 ? (
