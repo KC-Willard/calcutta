@@ -13,6 +13,7 @@ import {
   writeBatch,
   addDoc,
   serverTimestamp,
+  deleteField,
 } from 'firebase/firestore';
 import { 
   AuctionConfig, 
@@ -258,10 +259,10 @@ export async function completeItemAuction(
     results: newResults,
     totalPot: newTotalPot,
     remainingItems: nextItems,
-    currentItem: nextItem,
+    currentItem: nextItem || deleteField(),
     currentBid: 0,
-    currentBidderId: undefined,
-    currentBidderName: undefined,
+    currentBidderId: deleteField(),
+    currentBidderName: deleteField(),
     timerSeconds: 30,
     timerRunning: false,
     bidHistory: [],

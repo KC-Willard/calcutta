@@ -15,8 +15,7 @@ import {
   launchAuction,
   toggleAuctionTimer,
   voidCurrentBid,
-  completeItemAuction,
-  getAuctionResults
+  completeItemAuction
 } from './services/firebaseService';
 import {
   AuctionConfig,
@@ -58,7 +57,6 @@ function App() {
   // Results
   const [results, setResults] = useState<ItemRoundResult[]>([]);
   const [showResults, setShowResults] = useState(false);
-  const [showPayouts, setShowPayouts] = useState(false);
 
   // Cleanup subscriptions
   useEffect(() => {
@@ -78,21 +76,13 @@ function App() {
     };
   }, [auctionId]);
 
-  // Load results when auction completes
+  // Sync results from auction state
   useEffect(() => {
-    if (auctionId && auctionState?.phase === 'complete') {
-      loadResults();
+    if (auctionState?.results) {
+      console.log('Syncing results from state:', auctionState.results);
+      setResults(auctionState.results);
     }
-  }, [auctionState?.phase]);
-
-  const loadResults = async () => {
-    try {
-      const fetchedResults = await getAuctionResults(auctionId);
-      setResults(fetchedResults);
-    } catch (err) {
-      console.error('Error loading results:', err);
-    }
-  };
+  }, [auctionState?.results]);
 
   // Handle create auction
   const handleCreateAuction = async (
@@ -303,26 +293,7 @@ function App() {
           </>
         ) : (
           <>
-            {showPayouts ? (
-              <Results
-                results={[]}
-                participants={allParticipants}
-                totalPot={auctionState.totalPot}
-                auctionTitle={auctionConfig?.title || ''}
-                auctionConfig={auctionConfig || {
-                  id: auctionId,
-                  title: '',
-                  sessionCode: '',
-                  items: [],
-                  payouts: [],
-                }}
-                currentParticipant={currentParticipant}
-                state={auctionState}
-                onUpdateResult={handleUpdateResult}
-                onExport={handleExport}
-                onBack={() => setShowPayouts(false)}
-              />
-            ) : showResults || auctionState.phase === 'complete' ? (
+            {showResults || auctionState.phase === 'complete' ? (
               <Results
                 results={results}
                 participants={allParticipants}
@@ -339,6 +310,7 @@ function App() {
                 state={auctionState}
                 onUpdateResult={handleUpdateResult}
                 onExport={handleExport}
+                onBack={() => setShowResults(false)}
               />
             ) : (
               <Auction
@@ -350,7 +322,6 @@ function App() {
                 onPlaceBid={handlePlaceBid}
                 onPauseResume={handlePauseResume}
                 onVoidBid={handleVoidBid}
-                onViewPayouts={() => setShowPayouts(true)}
                 onViewResults={() => setShowResults(true)}
                 onCompleteItem={handleCompleteItem}
               />

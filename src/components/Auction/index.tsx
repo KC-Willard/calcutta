@@ -32,7 +32,6 @@ interface AuctionProps {
   onPlaceBid: (amount: number) => Promise<boolean>;
   onPauseResume: (paused: boolean) => Promise<void>;
   onVoidBid: () => Promise<void>;
-  onViewPayouts: () => void;
   onViewResults: () => void;
   onCompleteItem: (result: ItemRoundResult) => Promise<void>;
 }
@@ -46,7 +45,6 @@ export const Auction: React.FC<AuctionProps> = ({
   onPlaceBid,
   onPauseResume,
   onVoidBid,
-  onViewPayouts,
   onViewResults,
   onCompleteItem
 }) => {
@@ -60,6 +58,8 @@ export const Auction: React.FC<AuctionProps> = ({
 
   // Countdown timer - just count down
   useEffect(() => {
+    console.log('Timer effect triggered:', { timerRunning: state.timerRunning, timerSeconds: state.timerSeconds });
+    
     // Clear existing interval
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
@@ -68,6 +68,7 @@ export const Auction: React.FC<AuctionProps> = ({
     // Reset completion flag when timer resets
     completionTriggeredRef.current = false;
     setTimerDisplay(state.timerSeconds);
+    console.log('Timer display set to:', state.timerSeconds);
 
     // Start countdown if timer is running
     if (state.timerRunning) {
@@ -82,7 +83,7 @@ export const Auction: React.FC<AuctionProps> = ({
         clearInterval(timerIntervalRef.current);
       }
     };
-  }, [state.timerRunning, state.timerSeconds]);
+  }, [state.timerRunning, state.timerSeconds, state.currentBidderId]);
 
   // Handle completion when timer reaches 0
   useEffect(() => {
@@ -116,6 +117,7 @@ export const Auction: React.FC<AuctionProps> = ({
   }, [timerDisplay, state.timerRunning, state.currentBidderId, state.currentItem, state.currentBid, state.bidHistory, allParticipants, onCompleteItem]);
 
   const handlePlaceBid = async (amount: number) => {
+    console.log('Placing bid:', amount);
     setBidError('');
 
     if (amount <= state.currentBid) {
@@ -174,13 +176,6 @@ export const Auction: React.FC<AuctionProps> = ({
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            onClick={onViewPayouts}
-            variant="outlined"
-            size="small"
-          >
-            View Payouts
-          </Button>
           <Button
             onClick={onViewResults}
             variant="outlined"
