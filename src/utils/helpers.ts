@@ -1,5 +1,5 @@
-import XLSX from 'xlsx';
-import { ItemRoundResult, PayoutCategory, Participant, AuctionState } from '../types';
+import * as XLSX from 'xlsx';
+import { ItemRoundResult, PayoutCategory, Participant } from '../types';
 
 interface ExportData {
   auctionTitle: string;

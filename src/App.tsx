@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ThemeProvider, createTheme, Box, CircularProgress, Typography, Container } from '@mui/material';
 import { SignIn } from './components/SignIn';
 import { Setup } from './components/Setup';
@@ -7,6 +7,7 @@ import { Results } from './components/Results';
 import {
   createAuction,
   getAuctionBySessionCode,
+  getAuctionById,
   addParticipant,
   subscribeToAuctionState,
   subscribeToParticipants,
@@ -14,8 +15,7 @@ import {
   launchAuction,
   toggleAuctionTimer,
   voidCurrentBid,
-  completeItemAuction,
-  getAuctionResults
+  completeItemAuction
 } from './services/firebaseService';
 import {
   AuctionConfig,
@@ -57,7 +57,6 @@ function App() {
   // Results
   const [results, setResults] = useState<ItemRoundResult[]>([]);
   const [showResults, setShowResults] = useState(false);
-  const [showPayouts, setShowPayouts] = useState(false);
 
   // Cleanup subscriptions
   useEffect(() => {
@@ -77,21 +76,13 @@ function App() {
     };
   }, [auctionId]);
 
-  // Load results when auction completes
+  // Sync results from auction state
   useEffect(() => {
-    if (auctionId && auctionState?.phase === 'complete') {
-      loadResults();
+    if (auctionState?.results) {
+      console.log('Syncing results from state:', auctionState.results);
+      setResults(auctionState.results);
     }
-  }, [auctionState?.phase]);
-
-  const loadResults = async () => {
-    try {
-      const fetchedResults = await getAuctionResults(auctionId);
-      setResults(fetchedResults);
-    } catch (err) {
-      console.error('Error loading results:', err);
-    }
-  };
+  }, [auctionState?.results]);
 
   // Handle create auction
   const handleCreateAuction = async (
@@ -108,7 +99,7 @@ function App() {
         id: participantId,
         displayName,
         isHost: true,
-        avatarUrl: profilePicture ? await fileToDataUrl(profilePicture) : undefined
+        ...(profilePicture && { avatarUrl: await fileToDataUrl(profilePicture) })
       };
 
       setCurrentParticipant(newParticipant);
@@ -142,7 +133,7 @@ function App() {
         id: participantId,
         displayName,
         isHost: false,
-        avatarUrl: profilePicture ? await fileToDataUrl(profilePicture) : undefined
+        ...(profilePicture && { avatarUrl: await fileToDataUrl(profilePicture) })
       };
 
       // Add participant to auction
@@ -180,20 +171,11 @@ function App() {
       }
 
       setAuctionId(newAuctionId);
-      setAuctionConfig({
-        id: newAuctionId,
-        title,
-        sessionCode: '',
-        items,
-        payouts,
-        notes
-      });
 
-      // Load the config from Firebase to get session code
-      // For now we'll get it from the created auction
-      const auction = await getAuctionBySessionCode(''); // This won't work, need to fix
-      if (auction) {
-        setAuctionConfig(auction.config);
+      // Fetch the auction config from Firebase to get the session code
+      const auctionConfig = await getAuctionById(newAuctionId);
+      if (auctionConfig) {
+        setAuctionConfig(auctionConfig);
       }
 
       // Launch the auction
@@ -311,25 +293,7 @@ function App() {
           </>
         ) : (
           <>
-            {showPayouts ? (
-              <Results
-                results={[]}
-                participants={allParticipants}
-                totalPot={auctionState.totalPot}
-                auctionTitle={auctionConfig?.title || ''}
-                auctionConfig={auctionConfig || {
-                  id: auctionId,
-                  title: '',
-                  sessionCode: '',
-                  items: [],
-                  payouts: [],
-                }}
-                currentParticipant={currentParticipant}
-                state={auctionState}
-                onUpdateResult={handleUpdateResult}
-                onExport={handleExport}
-              />
-            ) : showResults || auctionState.phase === 'complete' ? (
+            {showResults || auctionState.phase === 'complete' ? (
               <Results
                 results={results}
                 participants={allParticipants}
@@ -346,6 +310,7 @@ function App() {
                 state={auctionState}
                 onUpdateResult={handleUpdateResult}
                 onExport={handleExport}
+                onBack={() => setShowResults(false)}
               />
             ) : (
               <Auction
@@ -357,7 +322,6 @@ function App() {
                 onPlaceBid={handlePlaceBid}
                 onPauseResume={handlePauseResume}
                 onVoidBid={handleVoidBid}
-                onViewPayouts={() => setShowPayouts(true)}
                 onViewResults={() => setShowResults(true)}
                 onCompleteItem={handleCompleteItem}
               />

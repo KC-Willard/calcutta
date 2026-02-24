@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Container,
   Box,
@@ -12,15 +12,12 @@ import {
   TableRow,
   Button,
   TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   IconButton,
   Divider,
   Grid,
   CircularProgress
 } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
 import GetAppIcon from '@mui/icons-material/GetApp';
 import { ItemRoundResult, Participant, AuctionConfig, AuctionState } from '../../types';
@@ -37,6 +34,7 @@ interface ResultsProps {
   state: AuctionState;
   onUpdateResult: (resultId: string, grossEarnings: number, categoriesWon: string) => Promise<void>;
   onExport: () => Promise<void>;
+  onBack?: () => void;
 }
 
 export const Results: React.FC<ResultsProps> = ({
@@ -48,7 +46,8 @@ export const Results: React.FC<ResultsProps> = ({
   currentParticipant,
   state,
   onUpdateResult,
-  onExport
+  onExport,
+  onBack
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editGrossEarnings, setEditGrossEarnings] = useState(0);
@@ -136,9 +135,16 @@ export const Results: React.FC<ResultsProps> = ({
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-          Auction Results
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {onBack && (
+            <IconButton onClick={onBack} sx={{ color: 'primary.main' }}>
+              <ArrowBackIcon />
+            </IconButton>
+          )}
+          <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+            Auction Results
+          </Typography>
+        </Box>
         {currentParticipant.isHost && state.phase === 'complete' && (
           <Button
             variant="contained"
