@@ -19,6 +19,7 @@ import {
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import DeleteIcon from '@mui/icons-material/Delete';
+import TimerIcon from '@mui/icons-material/Timer';
 import { AuctionState, Participant, ItemRoundResult } from '../../types';
 import { formatCurrency, getInitials, getAvatarColor } from '../../utils/helpers';
 import { Room } from '../Room';
@@ -52,27 +53,26 @@ export const Auction: React.FC<AuctionProps> = ({
   const [bidError, setBidError] = useState('');
   const [voidConfirm, setVoidConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [timerDisplay, setTimerDisplay] = useState(state.timerSeconds);
+  const [timerDisplay, setTimerDisplay] = useState(10); // Countdown duration
+  const [countdownActive, setCountdownActive] = useState(false); // Track if countdown is running
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const completionTriggeredRef = useRef(false);
 
-  // Countdown timer - just count down
+  // Countdown timer - only counts down when explicitly triggered
   useEffect(() => {
-    console.log('Timer effect triggered:', { timerRunning: state.timerRunning, timerSeconds: state.timerSeconds });
+    console.log('Timer effect triggered:', { countdownActive, timerDisplay });
     
     // Clear existing interval
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
     }
 
-    // Reset completion flag when timer resets
-    completionTriggeredRef.current = false;
-    setTimerDisplay(state.timerSeconds);
-    console.log('Timer display set to:', state.timerSeconds);
-
-    // Start countdown if timer is running
-    if (state.timerRunning) {
-      console.log('Starting timer countdown from', state.timerSeconds);
+    // Reset completion flag when countdown is triggered
+    if (countdownActive) {
+      completionTriggeredRef.current = false;
+      setTimerDisplay(10);
+      
+      console.log('Starting 10-second countdown');
       timerIntervalRef.current = setInterval(() => {
         setTimerDisplay(prev => Math.max(0, prev - 1));
       }, 1000);
@@ -83,23 +83,24 @@ export const Auction: React.FC<AuctionProps> = ({
         clearInterval(timerIntervalRef.current);
       }
     };
-  }, [state.timerRunning, state.timerSeconds, state.currentBidderId]);
+  }, [countdownActive]);
 
-  // Handle completion when timer reaches 0
+  // Handle completion when countdown reaches 0
   useEffect(() => {
-    console.log('Timer effect check:', {
+    console.log('Countdown check:', {
       timerDisplay,
-      timerRunning: state.timerRunning,
+      countdownActive,
       hasBidderId: !!state.currentBidderId,
       hasItem: !!state.currentItem,
       notTriggered: !completionTriggeredRef.current
     });
 
-    if (timerDisplay === 0 && state.timerRunning && !completionTriggeredRef.current && state.currentBidderId && state.currentItem) {
+    if (timerDisplay === 0 && countdownActive && !completionTriggeredRef.current && state.currentBidderId && state.currentItem) {
       console.log('TRIGGERING COMPLETION');
       completionTriggeredRef.current = true;
+      setCountdownActive(false);
       
-      // Timer expired - complete the item
+      // Countdown expired - complete the item
       const bidderName = allParticipants.find(p => p.id === state.currentBidderId)?.displayName || '';
       const result: ItemRoundResult = {
         itemId: state.currentItem.id,
@@ -114,7 +115,7 @@ export const Auction: React.FC<AuctionProps> = ({
       console.log('Calling onCompleteItem with result:', result);
       onCompleteItem(result);
     }
-  }, [timerDisplay, state.timerRunning, state.currentBidderId, state.currentItem, state.currentBid, state.bidHistory, allParticipants, onCompleteItem]);
+  }, [timerDisplay, countdownActive, state.currentBidderId, state.currentItem, state.currentBid, state.bidHistory, allParticipants, onCompleteItem]);
 
   const handlePlaceBid = async (amount: number) => {
     console.log('Placing bid:', amount);
@@ -147,13 +148,23 @@ export const Auction: React.FC<AuctionProps> = ({
     await handlePlaceBid(amount);
   };
 
+  const handleStartCountdown = () => {
+    if (state.currentBidderId && state.currentItem) {
+      setCountdownActive(true);
+    }
+  };
+
+  const handleStopCountdown = () => {
+    setCountdownActive(false);
+  };
+
   const getCurrentBidder = (): Participant | undefined => {
     return allParticipants.find(p => p.id === state.currentBidderId);
   };
 
   const bidder = getCurrentBidder();
-  const timerPercent = (state.timerSeconds / 30) * 100;
-  const timerColor = state.timerSeconds < 10 ? '#f44336' : '#4caf50';
+  const timerPercent = (timerDisplay / 10) * 100;
+  const timerColor = timerDisplay < 4 ? '#f44336' : '#4caf50';
 
   return (
     <Container maxWidth="lg" sx={{ py: 2 }}>
@@ -252,7 +263,7 @@ export const Auction: React.FC<AuctionProps> = ({
                     {/* Timer */}
                     <Box sx={{ mb: 4 }}>
                       <Typography variant="subtitle2" color="textSecondary" sx={{ mb: 1 }}>
-                        Time Remaining
+                        {countdownActive ? 'Countdown' : 'Bidding Time'}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Typography
@@ -263,11 +274,11 @@ export const Auction: React.FC<AuctionProps> = ({
                             fontFamily: 'monospace'
                           }}
                         >
-                          {state.timerRunning ? timerDisplay : state.timerSeconds}s
+                          {countdownActive ? timerDisplay : '—'}s
                         </Typography>
                         <LinearProgress
                           variant="determinate"
-                          value={timerPercent}
+                          value={countdownActive ? timerPercent : 0}
                           sx={{
                             flex: 1,
                             height: 8,
@@ -408,7 +419,19 @@ export const Auction: React.FC<AuctionProps> = ({
                   Host Controls
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={4}>
+                    <Button
+                      fullWidth
+                      variant={countdownActive ? 'contained' : 'outlined'}
+                      color={countdownActive ? 'error' : 'success'}
+                      startIcon={<TimerIcon />}
+                      onClick={countdownActive ? handleStopCountdown : handleStartCountdown}
+                      disabled={state.phase !== 'active' || !state.currentBidderId}
+                    >
+                      {countdownActive ? 'Stop Countdown' : 'Start 10s Countdown'}
+                    </Button>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
                     <Button
                       fullWidth
                       variant="outlined"
@@ -416,11 +439,11 @@ export const Auction: React.FC<AuctionProps> = ({
                       onClick={() => onPauseResume(!state.timerRunning)}
                       disabled={state.phase !== 'active'}
                     >
-                      {state.timerRunning ? 'Pause' : 'Resume'} Timer
+                      {state.timerRunning ? 'Pause' : 'Resume'}
                     </Button>
                   </Grid>
                   {state.currentBidderId && (
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={4}>
                       <Button
                         fullWidth
                         variant="outlined"
@@ -428,7 +451,7 @@ export const Auction: React.FC<AuctionProps> = ({
                         startIcon={<DeleteIcon />}
                         onClick={() => setVoidConfirm(true)}
                       >
-                        Void Current Bid
+                        Void Bid
                       </Button>
                     </Grid>
                   )}
